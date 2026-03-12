@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conference Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --text: #e0e0e8;
+    --text-muted: #6a6a80;
+    --green: #22c55e;
+    --green-glow: rgba(34, 197, 94, 0.15);
+    --yellow: #eab308;
+    --yellow-glow: rgba(234, 179, 8, 0.15);
+    --red: #ef4444;
+    --red-glow: rgba(239, 68, 68, 0.2);
+    --accent: #6366f1;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Subtle grid texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow behind timer */
+  .glow-backdrop {
+    position: fixed;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.3;
+    transition: background 0.8s ease;
+    background: var(--green);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .glow-backdrop.yellow { background: var(--yellow); }
+  .glow-backdrop.red { background: var(--red); opacity: 0.4; }
+  .glow-backdrop.flashing {
+    background: var(--red);
+    animation: glowPulse 0.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes glowPulse {
+    0% { opacity: 0.15; transform: scale(0.95); }
+    100% { opacity: 0.55; transform: scale(1.05); }
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    width: 100%;
+    max-width: 800px;
+    padding: 20px;
+  }
+
+  /* Title */
+  .title {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* Timer display */
+  .timer-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: clamp(80px, 18vw, 200px);
+    line-height: 1;
+    letter-spacing: -2px;
+    color: var(--green);
+    transition: color 0.5s ease, font-size 0.5s ease;
+    text-shadow: 0 0 40px var(--green-glow);
+    user-select: none;
+    position: relative;
+  }
+
+  .timer-display.running-size {
+    font-size: clamp(120px, 28vw, 320px);
+  }
+
+  .timer-display.yellow {
+    color: var(--yellow);
+    text-shadow: 0 0 40px var(--yellow-glow);
+  }
+
+  .timer-display.red {
+    color: var(--red);
+    text-shadow: 0 0 50px var(--red-glow);
+  }
+
+  .timer-display.flashing {
+    animation: flashTimer 0.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes flashTimer {
+    0% { color: var(--red); text-shadow: 0 0 50px var(--red-glow); opacity: 1; }
+    100% { color: #ff0000; text-shadow: 0 0 100px rgba(255,0,0,0.5); opacity: 0.4; }
+  }
+
+  /* Progress bar */
+  .progress-track {
+    width: 100%;
+    max-width: 520px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 4px;
+    transition: width 0.3s linear, background 0.5s ease;
+    width: 100%;
+  }
+
+  .progress-fill.yellow { background: var(--yellow); }
+  .progress-fill.red { background: var(--red); }
+
+  /* Setup panel */
+  .setup-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+  }
+
+  .time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .time-input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .time-input-group label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .time-input-group input {
+    width: 80px;
+    height: 56px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .time-input-group input:focus {
+    border-color: var(--accent);
+  }
+
+  .input-separator {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-muted);
+    margin-top: 16px;
+  }
+
+  /* Warning threshold inputs */
+  .warning-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+
+  .warning-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .warning-inputs {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .warning-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .warning-group label {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-right: 4px;
+  }
+
+  .warning-group input {
+    width: 52px;
+    height: 40px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .warning-group input:focus {
+    border-color: var(--accent);
+  }
+
+  .warning-unit {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .warning-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .yellow-dot { background: var(--yellow); }
+  .red-dot { background: var(--red); }
+
+  /* Preset buttons */
+  .presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .preset-btn {
+    padding: 8px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--text-muted);
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .preset-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+    background: rgba(99, 102, 241, 0.08);
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 12px;
+  }
+
+  .btn {
+    padding: 14px 36px;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+
+  .btn-start {
+    background: var(--green);
+    color: #0a0a0f;
+  }
+  .btn-start:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+  .btn-pause {
+    background: var(--yellow);
+    color: #0a0a0f;
+  }
+  .btn-pause:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+  .btn-reset {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .btn-reset:hover { border-color: var(--text-muted); color: var(--text); }
+
+  .btn-stop {
+    background: var(--red);
+    color: white;
+  }
+  .btn-stop:hover { filter: brightness(1.15); transform: translateY(-1px); }
+
+  /* Status label */
+  .status {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    min-height: 20px;
+  }
+
+  .status.running { color: var(--green); }
+  .status.paused { color: var(--yellow); }
+  .status.ended { color: var(--red); animation: blink 1s infinite; }
+
+  @keyframes blink {
+    50% { opacity: 0.4; }
+  }
+
+  /* Fullscreen hint */
+  .hint {
+    position: fixed;
+    bottom: 20px;
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    opacity: 0.5;
+    z-index: 1;
+  }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .time-input-group input { width: 64px; height: 48px; font-size: 20px; }
+    .btn { padding: 12px 24px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="glow-backdrop" id="glow"></div>
+
+<div class="container">
+  <div class="title">Conference Timer</div>
+
+  <div class="timer-display" id="timerDisplay">00:00</div>
+
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <div class="status" id="status">Ready</div>
+
+  <div class="setup-panel" id="setupPanel">
+    <div class="time-inputs">
+      <div class="time-input-group">
+        <label>Hours</label>
+        <input type="number" id="inputHours" min="0" max="23" value="0" />
+      </div>
+      <span class="input-separator">:</span>
+      <div class="time-input-group">
+        <label>Minutes</label>
+        <input type="number" id="inputMinutes" min="0" max="59" value="15" />
+      </div>
+      <span class="input-separator">:</span>
+      <div class="time-input-group">
+        <label>Seconds</label>
+        <input type="number" id="inputSeconds" min="0" max="59" value="0" />
+      </div>
+    </div>
+
+    <div class="warning-section">
+      <div class="warning-label">Warning Thresholds (time remaining)</div>
+      <div class="warning-inputs">
+        <div class="warning-group">
+          <div class="warning-dot yellow-dot"></div>
+          <label>Yellow at</label>
+          <input type="number" id="yellowMin" min="0" max="59" value="5" />
+          <span class="warning-unit">m</span>
+          <input type="number" id="yellowSec" min="0" max="59" value="0" />
+          <span class="warning-unit">s</span>
+        </div>
+        <div class="warning-group">
+          <div class="warning-dot red-dot"></div>
+          <label>Red at</label>
+          <input type="number" id="redMin" min="0" max="59" value="1" />
+          <span class="warning-unit">m</span>
+          <input type="number" id="redSec" min="0" max="59" value="0" />
+          <span class="warning-unit">s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="presets">
+      <button class="preset-btn" onclick="setPreset(5)">5 min</button>
+      <button class="preset-btn" onclick="setPreset(9)">9 min</button>
+      <button class="preset-btn" onclick="setPreset(10)">10 min</button>
+      <button class="preset-btn" onclick="setPreset(15)">15 min</button>
+      <button class="preset-btn" onclick="setPreset(20)">20 min</button>
+      <button class="preset-btn" onclick="setPreset(30)">30 min</button>
+      <button class="preset-btn" onclick="setPreset(45)">45 min</button>
+      <button class="preset-btn" onclick="setPreset(60)">60 min</button>
+    </div>
+  </div>
+
+  <div class="controls" id="controls">
+    <button class="btn btn-start" id="btnStart" onclick="startTimer()">Start</button>
+  </div>
+</div>
+
+<div class="hint">Press F for fullscreen</div>
+
+<script>
+  let totalSeconds = 0;
+  let remainingSeconds = 0;
+  let timerInterval = null;
+  let isRunning = false;
+  let isPaused = false;
+  let yellowAtSeconds = 300; // 5 min default
+  let redAtSeconds = 60;     // 1 min default
+
+  const display = document.getElementById('timerDisplay');
+  const progress = document.getElementById('progressFill');
+  const glow = document.getElementById('glow');
+  const status = document.getElementById('status');
+  const setupPanel = document.getElementById('setupPanel');
+  const controls = document.getElementById('controls');
+
+  function formatTime(secs) {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0) {
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  function setPreset(minutes) {
+    document.getElementById('inputHours').value = 0;
+    document.getElementById('inputMinutes').value = minutes;
+    document.getElementById('inputSeconds').value = 0;
+  }
+
+  function getInputSeconds() {
+    const h = parseInt(document.getElementById('inputHours').value) || 0;
+    const m = parseInt(document.getElementById('inputMinutes').value) || 0;
+    const s = parseInt(document.getElementById('inputSeconds').value) || 0;
+    return h * 3600 + m * 60 + s;
+  }
+
+  function updateDisplay() {
+    display.textContent = formatTime(remainingSeconds);
+    const fraction = totalSeconds > 0 ? remainingSeconds / totalSeconds : 0;
+    progress.style.width = (fraction * 100) + '%';
+
+    // Remove all state classes
+    display.classList.remove('yellow', 'red', 'flashing');
+    progress.classList.remove('yellow', 'red');
+    glow.classList.remove('yellow', 'red', 'flashing');
+
+    if (remainingSeconds <= 0 && isRunning) {
+      // Time's up — flash!
+      display.classList.add('flashing');
+      glow.classList.add('flashing');
+      progress.classList.add('red');
+      status.textContent = 'Time\'s Up!';
+      status.className = 'status ended';
+    } else if (remainingSeconds <= redAtSeconds) {
+      display.classList.add('red');
+      progress.classList.add('red');
+      glow.classList.add('red');
+    } else if (remainingSeconds <= yellowAtSeconds) {
+      display.classList.add('yellow');
+      progress.classList.add('yellow');
+      glow.classList.add('yellow');
+    }
+  }
+
+  function tick() {
+    if (remainingSeconds > 0) {
+      remainingSeconds--;
+      updateDisplay();
+    } else {
+      // Keep flashing but stop counting
+      clearInterval(timerInterval);
+      timerInterval = null;
+      updateDisplay();
+      // Continue flashing animation — already handled by CSS class
+    }
+  }
+
+  function startTimer() {
+    if (isPaused) {
+      // Resume
+      isPaused = false;
+      isRunning = true;
+      timerInterval = setInterval(tick, 1000);
+      status.textContent = 'Running';
+      status.className = 'status running';
+      renderControls();
+      return;
+    }
+
+    totalSeconds = getInputSeconds();
+    if (totalSeconds <= 0) return;
+
+    // Read warning thresholds
+    const ym = parseInt(document.getElementById('yellowMin').value) || 0;
+    const ys = parseInt(document.getElementById('yellowSec').value) || 0;
+    yellowAtSeconds = ym * 60 + ys;
+    const rm = parseInt(document.getElementById('redMin').value) || 0;
+    const rs = parseInt(document.getElementById('redSec').value) || 0;
+    redAtSeconds = rm * 60 + rs;
+
+    remainingSeconds = totalSeconds;
+    isRunning = true;
+    isPaused = false;
+
+    setupPanel.style.display = 'none';
+    display.classList.add('running-size');
+    updateDisplay();
+
+    status.textContent = 'Running';
+    status.className = 'status running';
+
+    timerInterval = setInterval(tick, 1000);
+    renderControls();
+  }
+
+  function pauseTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    isPaused = true;
+    isRunning = false;
+    status.textContent = 'Paused';
+    status.className = 'status paused';
+    renderControls();
+  }
+
+  function resetTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    isRunning = false;
+    isPaused = false;
+    remainingSeconds = 0;
+    totalSeconds = 0;
+
+    display.textContent = '00:00';
+    display.classList.remove('yellow', 'red', 'flashing', 'running-size');
+    progress.style.width = '100%';
+    progress.classList.remove('yellow', 'red');
+    glow.classList.remove('yellow', 'red', 'flashing');
+
+    status.textContent = 'Ready';
+    status.className = 'status';
+
+    setupPanel.style.display = 'flex';
+    renderControls();
+  }
+
+  function renderControls() {
+    if (!isRunning && !isPaused) {
+      controls.innerHTML = `<button class="btn btn-start" onclick="startTimer()">Start</button>`;
+    } else if (isRunning) {
+      controls.innerHTML = `
+        <button class="btn btn-pause" onclick="pauseTimer()">Pause</button>
+        <button class="btn btn-reset" onclick="resetTimer()">Reset</button>
+      `;
+    } else if (isPaused) {
+      controls.innerHTML = `
+        <button class="btn btn-start" onclick="startTimer()">Resume</button>
+        <button class="btn btn-reset" onclick="resetTimer()">Reset</button>
+      `;
+    }
+  }
+
+  // Fullscreen toggle
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen();
+      }
+    }
+    // Spacebar to pause/resume
+    if (e.key === ' ' && (isRunning || isPaused)) {
+      e.preventDefault();
+      if (isRunning) pauseTimer();
+      else startTimer();
+    }
+  });
+</script>
+</body>
+</html>
