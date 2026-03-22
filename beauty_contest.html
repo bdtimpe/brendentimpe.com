@@ -289,9 +289,9 @@
 <div class="container">
   <div class="header">
     <h1>Pick a Number</h1>
-    <p>Enter any number from 0 to 100. After submitting you'll see how everyone's picks stack up today — and the results update live as new entries come in.</p>
+    <p>Enter any number from 0 to 100. After submitting you'll see how everyone's picks stack up — and the results update live as new entries come in.</p>
     <div class="goal">
-      <strong>Your goal:</strong> try to guess <strong>one-half of the average</strong> of all numbers entered today.
+      <strong>Your goal:</strong> try to guess <strong>one-half of the average</strong> of all numbers entered this round.
     </div>
   </div>
 
@@ -386,6 +386,21 @@
   };
 
   // =========================================================================
+  //  ADMIN RESET SECRET
+  // =========================================================================
+  //  Change this to any passphrase you like. Two ways to reset:
+  //
+  //    1. URL parameter:  yoursite.com/pick-a-number.html?reset=changeme
+  //       → wipes all entries and redirects back to the clean page.
+  //
+  //    2. Keyboard shortcut:  press Ctrl+Shift+K (or Cmd+Shift+K on Mac)
+  //       → a prompt asks for the passphrase; if it matches, entries are wiped.
+  //
+  //  Regular visitors will never see either mechanism.
+  // =========================================================================
+  var ADMIN_SECRET = "changeme";
+
+  // =========================================================================
 
   // --- Check if Firebase is configured ---
   var isConfigured = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL);
@@ -397,7 +412,6 @@
   // --- Constants ---
   var BINS = 10;
   var BIN_SIZE = 100 / BINS;
-  var TODAY = new Date().toISOString().slice(0, 10);
   var allEntries = [];
   var myEntry = null;
   var hasSubmitted = false;
@@ -407,7 +421,7 @@
 
   if (isConfigured) {
     firebase.initializeApp(FIREBASE_CONFIG);
-    entriesRef = firebase.database().ref("entries/" + TODAY);
+    entriesRef = firebase.database().ref("entries/current");
   }
 
   // --- DOM refs ---
@@ -424,6 +438,47 @@
   var barsEl         = document.getElementById("bars");
   var binLabelsEl    = document.getElementById("bin-labels");
   var againBtn       = document.getElementById("again-btn");
+
+  // --- Admin reset logic ---
+  function doReset() {
+    if (!entriesRef) return;
+    entriesRef.remove().then(function () {
+      allEntries = [];
+      myEntry = null;
+      hasSubmitted = false;
+      resultsSection.classList.add("hidden");
+      formSection.classList.remove("hidden");
+      numInput.value = "";
+      updateEntryCount();
+      alert("All entries have been cleared.");
+    });
+  }
+
+  // Reset via URL: yoursite.com/page.html?reset=changeme
+  (function checkURLReset() {
+    var params = new URLSearchParams(window.location.search);
+    var resetVal = params.get("reset");
+    if (resetVal === ADMIN_SECRET && isConfigured) {
+      window.addEventListener("load", function () {
+        doReset();
+        // Clean URL so refresh doesn't re-trigger
+        window.history.replaceState({}, document.title, window.location.pathname);
+      });
+    }
+  })();
+
+  // Reset via keyboard: Ctrl+Shift+K (Cmd+Shift+K on Mac)
+  document.addEventListener("keydown", function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "K") {
+      e.preventDefault();
+      var input = prompt("Enter admin passphrase to clear all entries:");
+      if (input === ADMIN_SECRET) {
+        doReset();
+      } else if (input !== null) {
+        alert("Incorrect passphrase.");
+      }
+    }
+  });
 
   // --- Build bin labels once ---
   for (var i = 0; i < BINS; i++) {
@@ -448,7 +503,7 @@
 
   function updateEntryCount() {
     if (allEntries.length > 0) {
-      entryCount.textContent = allEntries.length + (allEntries.length === 1 ? " entry" : " entries") + " so far today";
+      entryCount.textContent = allEntries.length + (allEntries.length === 1 ? " entry" : " entries") + " so far this round";
       entryCount.classList.remove("hidden");
     } else {
       entryCount.classList.add("hidden");
@@ -499,7 +554,7 @@
     statAvg.textContent   = avg.toFixed(2);
     statHalf.textContent  = halfAvg.toFixed(2);
     histCount.innerHTML   = '<span class="live-dot"></span>'
-      + entries.length + (entries.length === 1 ? " entry" : " entries") + " today";
+      + entries.length + (entries.length === 1 ? " entry" : " entries") + " this round";
 
     // Build histogram bins
     var bins = new Array(BINS).fill(0);
