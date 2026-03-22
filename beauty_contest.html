@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pick a Number</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf7f2;
+    --fg: #2d2a26;
+    --card: #ffffff;
+    --muted: #8a8580;
+    --input-border: #d4cfc8;
+    --accent: #e07a5f;
+    --accent-dark: #c45d3e;
+    --accent2: #3d7c71;
+    --accent3: #5b7fc7;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--fg);
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+
+  .container { max-width: 560px; width: 100%; }
+
+  .header { text-align: center; margin-bottom: 40px; }
+
+  .header h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 40px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: var(--fg);
+  }
+
+  .header p {
+    font-size: 15px;
+    color: var(--muted);
+    margin-top: 10px;
+    line-height: 1.5;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .header .goal {
+    display: inline-block;
+    margin-top: 14px;
+    background: linear-gradient(135deg, rgba(224,122,95,.12), rgba(61,124,113,.10));
+    border: 1px solid rgba(224,122,95,.25);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fg);
+    line-height: 1.45;
+  }
+
+  .goal strong {
+    color: var(--accent-dark);
+  }
+
+  .form-card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 36px 32px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.06);
+  }
+
+  .form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .input-row { display: flex; gap: 10px; }
+
+  .num-input {
+    flex: 1;
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 700;
+    padding: 14px 18px;
+    border: 2px solid var(--input-border);
+    border-radius: 12px;
+    outline: none;
+    background: var(--bg);
+    color: var(--fg);
+    transition: border-color 0.2s;
+  }
+  .num-input:focus { border-color: var(--accent); }
+  .num-input::placeholder { color: var(--input-border); }
+
+  .submit-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #e07a5f 0%, #c45d3e 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 3px 12px rgba(224,122,95,.35);
+  }
+  .submit-btn:active { transform: scale(0.97); }
+
+  .error-msg { color: #c0392b; font-size: 13px; margin-top: 10px; font-weight: 500; }
+
+  .entry-count {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 14px;
+    text-align: center;
+  }
+
+  /* Results */
+  .results { animation: fadeUp 0.5s cubic-bezier(.4,0,.2,1) both; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+
+  .stat-card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 22px 26px;
+    flex: 1;
+    min-width: 140px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+
+  .stat-card .label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .stat-card .value {
+    font-family: 'Fraunces', serif;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.1;
+    transition: all 0.3s ease;
+  }
+
+  .histogram-card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 28px 24px 20px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.06);
+  }
+
+  .histogram-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .histogram-header h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .histogram-header span { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+  .bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 180px;
+    padding: 0 4px;
+  }
+
+  .bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+  }
+
+  .bar-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--fg);
+    margin-bottom: 4px;
+    min-height: 16px;
+  }
+
+  .bar {
+    width: 100%;
+    background: linear-gradient(180deg, #e07a5f 0%, #c45d3e 100%);
+    border-radius: 6px 6px 2px 2px;
+    transition: height 0.5s cubic-bezier(.4,0,.2,1);
+  }
+
+  .bin-labels {
+    display: flex;
+    gap: 6px;
+    padding: 6px 4px 0;
+  }
+
+  .bin-labels span {
+    flex: 1;
+    text-align: center;
+    font-size: 9px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .live-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    background: #3d7c71;
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s ease-in-out infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .again-btn {
+    display: block;
+    margin: 24px auto 0;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 24px;
+    background: transparent;
+    color: var(--muted);
+    border: 2px solid var(--input-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .again-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .setup-banner {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #664d03;
+  }
+  .setup-banner code {
+    background: rgba(0,0,0,.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .setup-banner a { color: #664d03; font-weight: 700; }
+
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Pick a Number</h1>
+    <p>Enter any number from 0 to 100. After submitting you'll see how everyone's picks stack up today — and the results update live as new entries come in.</p>
+    <div class="goal">
+      <strong>Your goal:</strong> try to guess <strong>one-half of the average</strong> of all numbers entered today.
+    </div>
+  </div>
+
+  <!-- Setup warning (shown only if Firebase isn't configured) -->
+  <div id="setup-banner" class="setup-banner hidden">
+    <strong>Setup needed!</strong> To enable shared real-time data, create a free
+    <a href="https://console.firebase.google.com/" target="_blank">Firebase project</a>,
+    enable the <strong>Realtime Database</strong>, and paste your config into the
+    <code>FIREBASE_CONFIG</code> object near the bottom of this HTML file. See the
+    comments in the source for step-by-step details.
+  </div>
+
+  <!-- Entry Form -->
+  <div id="form-section" class="form-card">
+    <label class="form-label" for="num-input">Your Number (0–100)</label>
+    <div class="input-row">
+      <input id="num-input" class="num-input" type="number" min="0" max="100" step="any" placeholder="e.g. 42" autofocus>
+      <button id="submit-btn" class="submit-btn">Submit</button>
+    </div>
+    <p id="error-msg" class="error-msg hidden"></p>
+    <p id="entry-count" class="entry-count hidden"></p>
+  </div>
+
+  <!-- Results -->
+  <div id="results-section" class="results hidden">
+    <div class="stat-row">
+      <div class="stat-card" style="border-left: 4px solid var(--accent)">
+        <div class="label">Your Entry</div>
+        <div class="value" id="stat-entry" style="color: var(--accent)">—</div>
+      </div>
+      <div class="stat-card" style="border-left: 4px solid var(--accent2)">
+        <div class="label">Today's Average</div>
+        <div class="value" id="stat-avg" style="color: var(--accent2)">—</div>
+      </div>
+      <div class="stat-card" style="border-left: 4px solid var(--accent3)">
+        <div class="label">½ the Average</div>
+        <div class="value" id="stat-half" style="color: var(--accent3)">—</div>
+      </div>
+    </div>
+
+    <div class="histogram-card">
+      <div class="histogram-header">
+        <h2>Distribution</h2>
+        <span id="hist-count"><span class="live-dot"></span>0 entries today</span>
+      </div>
+      <div class="bars" id="bars"></div>
+      <div class="bin-labels" id="bin-labels"></div>
+    </div>
+
+    <button class="again-btn" id="again-btn">Submit Another</button>
+  </div>
+</div>
+
+<!-- Firebase SDK (compat mode for simplicity — single-file friendly) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<script>
+(function () {
+
+  // =========================================================================
+  //  FIREBASE CONFIGURATION — REPLACE THE EMPTY STRINGS WITH YOUR OWN VALUES
+  // =========================================================================
+  //
+  //  Step-by-step:
+  //
+  //  1. Go to https://console.firebase.google.com/ and create a new project
+  //     (or use an existing one). You can skip Google Analytics.
+  //
+  //  2. In the left sidebar click "Build → Realtime Database", then
+  //     "Create Database". Pick any region. Choose "Start in test mode"
+  //     for quick setup (allows reads/writes for 30 days — tighten rules
+  //     before going to production).
+  //
+  //  3. Go to Project Settings (gear icon) → General → "Your apps" section.
+  //     Click the Web icon (</>) to register a web app. Give it any name.
+  //
+  //  4. Firebase will show you a firebaseConfig object. Copy-paste the
+  //     values below (keep the quotes).
+  //
+  //  5. Save this file, open it in a browser, and you're live!
+  //
+  // =========================================================================
+  var FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyA320mmUO6q6UYf5OvTU9VxRWTlPTlUiyM",   // e.g. "AIzaSyD..."
+    authDomain:        "raik182h.firebaseapp.com",   // e.g. "my-project.firebaseapp.com"
+    databaseURL:       "https://raik182h-default-rtdb.firebaseio.com",   // e.g. "https://my-project-default-rtdb.firebaseio.com"
+    projectId:         "raik182h",   // e.g. "my-project"
+    storageBucket:     "raik182h.firebasestorage.app",   // e.g. "my-project.appspot.com"
+    messagingSenderId: "333775829359",   // e.g. "123456789"
+    appId:             "1:333775829359:web:afb0ea5b658ea9d5ab109a"    // e.g. "1:123456789:web:abc123"
+  };
+
+  // =========================================================================
+
+  // --- Check if Firebase is configured ---
+  var isConfigured = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL);
+
+  if (!isConfigured) {
+    document.getElementById("setup-banner").classList.remove("hidden");
+  }
+
+  // --- Constants ---
+  var BINS = 10;
+  var BIN_SIZE = 100 / BINS;
+  var TODAY = new Date().toISOString().slice(0, 10);
+  var allEntries = [];
+  var myEntry = null;
+  var hasSubmitted = false;
+
+  // --- Firebase init ---
+  var entriesRef = null;
+
+  if (isConfigured) {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    entriesRef = firebase.database().ref("entries/" + TODAY);
+  }
+
+  // --- DOM refs ---
+  var formSection    = document.getElementById("form-section");
+  var resultsSection = document.getElementById("results-section");
+  var numInput       = document.getElementById("num-input");
+  var submitBtn      = document.getElementById("submit-btn");
+  var errorMsg       = document.getElementById("error-msg");
+  var entryCount     = document.getElementById("entry-count");
+  var statEntry      = document.getElementById("stat-entry");
+  var statAvg        = document.getElementById("stat-avg");
+  var statHalf       = document.getElementById("stat-half");
+  var histCount      = document.getElementById("hist-count");
+  var barsEl         = document.getElementById("bars");
+  var binLabelsEl    = document.getElementById("bin-labels");
+  var againBtn       = document.getElementById("again-btn");
+
+  // --- Build bin labels once ---
+  for (var i = 0; i < BINS; i++) {
+    var span = document.createElement("span");
+    span.textContent = (i * BIN_SIZE) + "\u2013" + ((i + 1) * BIN_SIZE);
+    binLabelsEl.appendChild(span);
+  }
+
+  // --- Real-time listener — fires on first load and every change ---
+  if (entriesRef) {
+    entriesRef.on("value", function (snapshot) {
+      allEntries = [];
+      snapshot.forEach(function (child) {
+        allEntries.push(child.val());
+      });
+      updateEntryCount();
+      if (hasSubmitted) {
+        renderResults();
+      }
+    });
+  }
+
+  function updateEntryCount() {
+    if (allEntries.length > 0) {
+      entryCount.textContent = allEntries.length + (allEntries.length === 1 ? " entry" : " entries") + " so far today";
+      entryCount.classList.remove("hidden");
+    } else {
+      entryCount.classList.add("hidden");
+    }
+  }
+
+  // --- Submit ---
+  function handleSubmit() {
+    var num = parseFloat(numInput.value);
+    if (isNaN(num) || num < 0 || num > 100) {
+      errorMsg.textContent = "Please enter a number between 0 and 100.";
+      errorMsg.classList.remove("hidden");
+      return;
+    }
+    errorMsg.classList.add("hidden");
+
+    var rounded = Math.round(num * 100) / 100;
+    myEntry = rounded;
+
+    if (entriesRef) {
+      // Push to Firebase — the real-time listener will pick it up
+      entriesRef.push(rounded);
+    } else {
+      // Fallback: local-only mode when Firebase isn't configured
+      allEntries.push(rounded);
+    }
+
+    hasSubmitted = true;
+    formSection.classList.add("hidden");
+    resultsSection.classList.remove("hidden");
+    renderResults();
+  }
+
+  submitBtn.addEventListener("click", handleSubmit);
+  numInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") handleSubmit();
+  });
+
+  // --- Render results (called on every Firebase update while viewing) ---
+  function renderResults() {
+    var entries = allEntries;
+    var avg = entries.length
+      ? entries.reduce(function (a, b) { return a + b; }, 0) / entries.length
+      : 0;
+    var halfAvg = avg / 2;
+
+    statEntry.textContent = myEntry;
+    statAvg.textContent   = avg.toFixed(2);
+    statHalf.textContent  = halfAvg.toFixed(2);
+    histCount.innerHTML   = '<span class="live-dot"></span>'
+      + entries.length + (entries.length === 1 ? " entry" : " entries") + " today";
+
+    // Build histogram bins
+    var bins = new Array(BINS).fill(0);
+    entries.forEach(function (v) {
+      var idx = Math.min(Math.floor(v / BIN_SIZE), BINS - 1);
+      bins[idx]++;
+    });
+    var maxBin = Math.max.apply(null, bins) || 1;
+
+    barsEl.innerHTML = "";
+    bins.forEach(function (count) {
+      var col = document.createElement("div");
+      col.className = "bar-col";
+
+      var lbl = document.createElement("span");
+      lbl.className = "bar-count";
+      lbl.textContent = count > 0 ? count : "";
+      col.appendChild(lbl);
+
+      var bar = document.createElement("div");
+      bar.className = "bar";
+      var pct = (count / maxBin) * 100;
+      bar.style.height = count > 0 ? Math.max(pct, 3) + "%" : "0";
+      col.appendChild(bar);
+
+      barsEl.appendChild(col);
+    });
+  }
+
+  // --- Submit Another ---
+  againBtn.addEventListener("click", function () {
+    resultsSection.classList.add("hidden");
+    formSection.classList.remove("hidden");
+    numInput.value = "";
+    myEntry = null;
+    hasSubmitted = false;
+    updateEntryCount();
+    numInput.focus();
+  });
+
+})();
+</script>
+</body>
+</html>
