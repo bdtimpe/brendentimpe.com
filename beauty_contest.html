@@ -248,22 +248,6 @@
     50% { opacity: 0.35; }
   }
 
-  .again-btn {
-    display: block;
-    margin: 24px auto 0;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    font-weight: 600;
-    padding: 10px 24px;
-    background: transparent;
-    color: var(--muted);
-    border: 2px solid var(--input-border);
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .again-btn:hover { border-color: var(--accent); color: var(--accent); }
-
   .setup-banner {
     background: #fff3cd;
     border: 1px solid #ffc107;
@@ -335,13 +319,12 @@
     <div class="histogram-card">
       <div class="histogram-header">
         <h2>Distribution</h2>
-        <span id="hist-count"><span class="live-dot"></span>0 entries today</span>
+        <span id="hist-count"><span class="live-dot"></span>0 entries this round</span>
       </div>
       <div class="bars" id="bars"></div>
       <div class="bin-labels" id="bin-labels"></div>
     </div>
 
-    <button class="again-btn" id="again-btn">Submit Another</button>
   </div>
 </div>
 
@@ -418,10 +401,29 @@
 
   // --- Firebase init ---
   var entriesRef = null;
+  var roundRef = null;
+  var currentRoundId = null;
 
   if (isConfigured) {
     firebase.initializeApp(FIREBASE_CONFIG);
+    roundRef   = firebase.database().ref("round");
     entriesRef = firebase.database().ref("entries/current");
+  }
+
+  // --- One-submission-per-round via localStorage ---
+  function getLocalRoundId() {
+    return localStorage.getItem("picknum_round_id");
+  }
+  function getLocalSubmission() {
+    return localStorage.getItem("picknum_my_entry");
+  }
+  function markSubmitted(roundId, value) {
+    localStorage.setItem("picknum_round_id", roundId);
+    localStorage.setItem("picknum_my_entry", String(value));
+  }
+  function clearLocalSubmission() {
+    localStorage.removeItem("picknum_round_id");
+    localStorage.removeItem("picknum_my_entry");
   }
 
   // --- DOM refs ---
@@ -437,20 +439,28 @@
   var histCount      = document.getElementById("hist-count");
   var barsEl         = document.getElementById("bars");
   var binLabelsEl    = document.getElementById("bin-labels");
-  var againBtn       = document.getElementById("again-btn");
 
   // --- Admin reset logic ---
   function doReset() {
-    if (!entriesRef) return;
+    if (!entriesRef || !roundRef) return;
+    // Generate a new round ID, clear entries
+    var newRoundId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     entriesRef.remove().then(function () {
+      return roundRef.set(newRoundId);
+    }).then(function () {
+      currentRoundId = newRoundId;
+      clearLocalSubmission();
       allEntries = [];
       myEntry = null;
       hasSubmitted = false;
+      alreadyLockedOut = false;
       resultsSection.classList.add("hidden");
       formSection.classList.remove("hidden");
+      submitBtn.disabled = false;
+      numInput.disabled = false;
       numInput.value = "";
       updateEntryCount();
-      alert("All entries have been cleared.");
+      alert("New round started! All entries have been cleared.");
     });
   }
 
@@ -488,6 +498,47 @@
   }
 
   // --- Real-time listener — fires on first load and every change ---
+  var alreadyLockedOut = false;
+
+  if (roundRef) {
+    // Watch for round changes (new game resets everyone)
+    roundRef.on("value", function (snapshot) {
+      var liveRoundId = snapshot.val();
+      if (!liveRoundId) {
+        // No round exists yet — create one
+        var newId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        roundRef.set(newId);
+        return;
+      }
+
+      // If the round changed while we're viewing results, reset the UI
+      if (currentRoundId && liveRoundId !== currentRoundId) {
+        clearLocalSubmission();
+        allEntries = [];
+        myEntry = null;
+        hasSubmitted = false;
+        alreadyLockedOut = false;
+        resultsSection.classList.add("hidden");
+        formSection.classList.remove("hidden");
+        submitBtn.disabled = false;
+        numInput.disabled = false;
+        numInput.value = "";
+        updateEntryCount();
+      }
+
+      currentRoundId = liveRoundId;
+
+      // Check if this browser already submitted for this round
+      if (getLocalRoundId() === currentRoundId && getLocalSubmission() !== null) {
+        myEntry = parseFloat(getLocalSubmission());
+        hasSubmitted = true;
+        alreadyLockedOut = true;
+        formSection.classList.add("hidden");
+        resultsSection.classList.remove("hidden");
+      }
+    });
+  }
+
   if (entriesRef) {
     entriesRef.on("value", function (snapshot) {
       allEntries = [];
@@ -512,6 +563,13 @@
 
   // --- Submit ---
   function handleSubmit() {
+    // Block if already submitted this round
+    if (alreadyLockedOut) {
+      errorMsg.textContent = "You've already submitted a number this round.";
+      errorMsg.classList.remove("hidden");
+      return;
+    }
+
     var num = parseFloat(numInput.value);
     if (isNaN(num) || num < 0 || num > 100) {
       errorMsg.textContent = "Please enter a number between 0 and 100.";
@@ -530,6 +588,12 @@
       // Fallback: local-only mode when Firebase isn't configured
       allEntries.push(rounded);
     }
+
+    // Mark this browser as having submitted for this round
+    if (currentRoundId) {
+      markSubmitted(currentRoundId, rounded);
+    }
+    alreadyLockedOut = true;
 
     hasSubmitted = true;
     formSection.classList.add("hidden");
@@ -583,17 +647,6 @@
       barsEl.appendChild(col);
     });
   }
-
-  // --- Submit Another ---
-  againBtn.addEventListener("click", function () {
-    resultsSection.classList.add("hidden");
-    formSection.classList.remove("hidden");
-    numInput.value = "";
-    myEntry = null;
-    hasSubmitted = false;
-    updateEntryCount();
-    numInput.focus();
-  });
 
 })();
 </script>
